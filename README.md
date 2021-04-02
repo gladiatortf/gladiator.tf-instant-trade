@@ -4,6 +4,7 @@ Start a trade with a [Gladiator.tf](https://gladiator.tf) bot in a single click.
 
 ## Usage
 A "Gladiator.tf Instant Trade" button will appear on every listing from a Gladiator.tf bot. Click it, and in a few seconds you will be directed to the trade offer.
+
 ![Example](https://cdn.discordapp.com/attachments/445162468541464576/827498192546955334/unknown.png)
 
 

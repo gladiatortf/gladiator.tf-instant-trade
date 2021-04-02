@@ -3,6 +3,7 @@
 // @namespace    https://steamcommunity.com/profiles/76561198320810968
 // @version      0.1
 // @author       manic
+// @description  Start a trade with a Gladiator.tf bot in a single click
 // @grant        GM_xmlhttpRequest
 // @connect      gladiator.tf
 // @license      MIT
