@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gladiator.tf Instant Trade
 // @namespace    https://steamcommunity.com/profiles/76561198320810968
-// @version      0.1
+// @version      0.2
 // @author       manic
 // @description  Start a trade with a Gladiator.tf bot in a single click
 // @grant        GM_xmlhttpRequest
@@ -46,7 +46,7 @@
         let currentlyTrading = false;
         $('.listing').each(function () {
             let listing = $(this);
-            let bot = listing.find('.user-link').data("id");
+            let bot = listing.find('.user-link').attr("data-id");
             if (!bots.includes(bot)) return;
             let item = listing.find('.listing-item .item');
             let buttons = listing.find('.listing-buttons');
