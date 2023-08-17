@@ -1,5 +1,3 @@
-# ⚠️Gladiator.tf has shut down, this script is no longer functional⚠️
-
 # Gladiator.tf Instant Trade
 
 Start a trade with a [Gladiator.tf](https://gladiator.tf) bot in a single click.
