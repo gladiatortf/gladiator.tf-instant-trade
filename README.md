@@ -7,9 +7,6 @@ A "Gladiator.tf Instant Trade" button will appear on every listing from a Gladia
 
 ![Example](https://cdn.discordapp.com/attachments/445162468541464576/827498192546955334/unknown.png)
 
-> [!WARNING] 
-> To use this in Chromium-based browsers (Google Chrome, Opera, Edge), you need to navigate to Manage Extensions page (chrome://extensions/) and enable Developer Mode.
-
 ## Requirements
 There are a few requirements for Gladiator.tf to work.
 
@@ -21,3 +18,6 @@ There are a few requirements for Gladiator.tf to work.
 1. Install [Tampermonkey](https://www.tampermonkey.net/).
 2. Open the [script in raw view](https://github.com/mninc/gladiator.tf-instant-trade/raw/master/gladiator-instant-trade.user.js).
 3. Install.
+
+> [!WARNING] 
+> To use this in Chromium-based browsers (Google Chrome, Opera, Edge), you need to navigate to Manage Extensions page (chrome://extensions/) and enable Developer Mode.
