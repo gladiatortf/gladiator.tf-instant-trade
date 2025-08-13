@@ -2,7 +2,7 @@
 // @name            Gladiator.tf Instant Trade
 // @namespace       https://gladiator.tf/
 // @version         1.0
-// @author          Gladiator.TF Team & manic
+// @author          Gladiator.TF Team &  manic
 // @description     Start a trade with a Gladiator.tf bot in a single click
 // @grant           GM_xmlhttpRequest
 // @grant           GM_addStyle
@@ -22,60 +22,101 @@
 // @require         https://unpkg.com/tippy.js@4
 // ==/UserScript==
 
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
-(function () {
+const URL = "https://gladiator.tf";
+
+let activelyTrading = false;
+
+(async function () {
     'use strict';
 
+    const bots = await getBots();
     if (document.location.hostname === "next.backpack.tf") {
         console.log("Next");
-        nextVersion();
+        addLinksNext(bots);
         return;
     }
 
     console.log("Classic");
-    classicVersion();
+    addLinksClassic(bots);
 })();
 
-function nextVersion() {
-    'use strict';
+function fetchBots() {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: `${URL}/api/bots`,
+            onload: function (data) {
+                const response = JSON.parse(data.responseText);
+                if (!response.success) {
+                    reject(new Error(response.message));
+                    return;
+                }
 
-    const Modal = function (title, ...content) {
-        __NUXT__.state.modal = { title: title, modalBundle: null, modalContext: "gladiator" };
-        // wait for modal to be created :)
-        setTimeout(() => {
-            const dialog = document.getElementsByClassName("page-dialog")[0];
-            if (!dialog) return;
-            for (const child of content) {
-                const p = document.createElement("p");
-                p.innerText = child;
-                dialog.append(p);
-            }
-        }, 100);
-    }
+                resolve(response.bots);
+            },
+            onerror: function (err) {
+                reject(err);
+            },
+        });
+    })
+}
 
-    const URL = "https://gladiator.tf";
-    let data = localStorage.getItem("gladiator.tf bots");
-    if (data) {
-        data = JSON.parse(data);
-        if (new Date() - new Date(data.at) < 1000 * 60 * 60 * 24 && data.url === URL) return addLinks(data.bots);
-    }
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: `${URL}/api/bots`,
-        onload: function (data) {
-            data = JSON.parse(data.responseText);
-            if (!data.success) return Modal(data.message);
-
-            let bots = data.bots;
-            addLinks(bots);
-            localStorage.setItem("gladiator.tf bots", JSON.stringify({ at: new Date(), bots, url: URL }));
+async function getBots() {
+    const rawData = localStorage.getItem("gladiator.tf bots");
+    if (rawData) {
+        const data = JSON.parse(rawData);
+        if (Date.now() - data.at < DAY && data.url === URL) {
+            return data.bots;
         }
+    }
+
+    const bots = await fetchBots().catch((err) => {
+        if (rawData) {
+            return JSON.parse(rawData).bots;
+        }
+
+        throw err;
     });
 
-    function addLinks(bots) {
-        let currentlyTrading = false;
+    localStorage.setItem("gladiator.tf bots", JSON.stringify({ at: new Date(), bots, url: URL }));
+    return bots;
+}
 
-        GM_addStyle(`
+function startTrade(bot, cart) {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: `${URL}/api/start_trade`,
+            data: JSON.stringify({ bot, cart }),
+            headers: {
+                "Content-Type": "application/json"
+            },
+            onload: function (data) {
+                const response = JSON.parse(data.responseText);
+                if (!response.success) {
+                    reject(new Error(response.message));
+                    return;
+                }
+
+                resolve(response.tradeOfferURL);
+            },
+            onerror: function (err) {
+                reject(err);
+            },
+        })
+    });
+}
+
+function addLinksNext(bots) {
+    /* global tippy */
+    /* global __NUXT__ */
+
+    GM_addStyle(`
         .glad-icon {
             cursor: pointer;
             height: 22px;
@@ -94,7 +135,8 @@ function nextVersion() {
             display: inline-block;
             width: 22px;
             height: 22px;
-            }
+        }
+
         .glad-icon.glad-loading:after {
             content: " ";
             display: block;
@@ -113,164 +155,155 @@ function nextVersion() {
             100% {
                 transform: rotate(360deg);
             }
+        }
+    `);
+
+    const Modal = function (title, ...content) {
+        __NUXT__.state.modal = { title: title, modalBundle: null, modalContext: "gladiator" };
+
+        // wait for modal to be created :)
+        setTimeout(() => {
+            const dialog = document.getElementsByClassName("page-dialog")[0];
+            if (!dialog) {
+                return;
             }
-            `);
 
-        const callback = function (mutationsList) {
-            for (const mutation of mutationsList) {
-                if (mutation.type !== "childList") continue;
+            for (const child of content) {
+                const p = document.createElement("p");
+                p.innerText = child;
+                dialog.append(p);
+            }
+        }, 100);
+    }
 
-                for (const node of mutation.addedNodes) {
-                    let child = node.children && node.children[0];
-                    if (!child) continue;
-                    child = child.children[0];
-                    if (!child) continue;
-                    if (child.innerText !== "BOT") continue;
-                    let listing = node.parentNode.parentNode.parentNode.parentNode;
-                    let links = listing.getElementsByTagName("a");
-                    let bot;
+    const callback = function (mutationsList) {
+        for (const mutation of mutationsList) {
+            if (mutation.type !== "childList") continue;
+
+            for (const node of mutation.addedNodes) {
+                let child = node.children && node.children[0];
+                if (!child) continue;
+                child = child.children[0];
+                if (!child) continue;
+                if (child.innerText !== "BOT") continue;
+                let listing = node.parentNode.parentNode.parentNode.parentNode;
+                let links = listing.getElementsByTagName("a");
+                let bot;
+                for (const link of links) {
+                    let href = link.getAttribute("href");
+                    if (href.startsWith("/profiles/")) bot = href.split("/")[2];
+                }
+                if (!bots.includes(bot)) continue;
+
+                const intent = listing.getElementsByClassName("text-sell").length ? "sell" : "buy";
+                const cart = { buy: [], sell: [] };
+                if (intent === "sell") {
+                    let assetid;
                     for (const link of links) {
                         let href = link.getAttribute("href");
-                        if (href.startsWith("/profiles/")) bot = href.split("/")[2];
+                        if (href.startsWith("/classifieds/")) assetid = href.split("440_")[1];
                     }
-                    if (!bots.includes(bot)) continue;
-
-                    const intent = listing.getElementsByClassName("text-sell").length ? "sell" : "buy";
-                    const cart = { buy: [], sell: [] };
-                    if (intent === "sell") {
-                        let assetid;
-                        for (const link of links) {
-                            let href = link.getAttribute("href");
-                            if (href.startsWith("/classifieds/")) assetid = href.split("440_")[1];
-                        }
-                        cart.buy.push({
-                            assetid
-                        });
-                    } else {
-                        let listingID;
-                        for (const link of links) {
-                            let href = link.getAttribute("href");
-                            if (href.startsWith("/classifieds/")) listingID = href.split("/")[2];
-                        }
-                        cart.sell.push({
-                            listingID
-                        });
+                    cart.buy.push({
+                        assetid
+                    });
+                } else {
+                    let listingID;
+                    for (const link of links) {
+                        let href = link.getAttribute("href");
+                        if (href.startsWith("/classifieds/")) listingID = href.split("/")[2];
                     }
-
-                    const buttons = listing.getElementsByClassName("listing__details__actions")[0];
-                    const button = document.createElement("a");
-                    button.setAttribute("data-tippy-content", "Gladiator.tf Instant Trade");
-                    button.setAttribute("href", `steam://friends/add/${bot}`);
-                    button.classList.add("glad-icon");
-                    button.classList.add("glad-static");
-                    buttons.append(button);
-                    tippy(button);
-                    button.addEventListener("click", function () {
-                        if (currentlyTrading) return Modal("Error creating trade", "You already have a trade processing! Wait for it to finish before starting another.");
-                        currentlyTrading = true;
-                        button.classList.remove("glad-static")
-                        button.classList.add("glad-loading");
-                        GM_xmlhttpRequest({
-                            method: "POST",
-                            url: `${URL}/api/start_trade`,
-                            data: JSON.stringify({ bot, cart }),
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            onload: function (data) {
-                                currentlyTrading = false;
-                                data = JSON.parse(data.responseText);
-                                button.classList.add("glad-static")
-                                button.classList.remove("glad-loading");
-                                if (data.success) window.open(data.tradeOfferURL);
-                                else {
-                                    if (data.error === "Not signed in") window.open(`${URL}/auth/steam`);
-                                    else Modal("Error creating trade", data.message);
-                                }
-                            }
-                        })
-                    }, false);
+                    cart.sell.push({
+                        listingID
+                    });
                 }
+
+                const buttons = listing.getElementsByClassName("listing__details__actions")[0];
+                const button = document.createElement("a");
+                button.setAttribute("data-tippy-content", "Gladiator.tf Instant Trade");
+                button.setAttribute("href", `steam://friends/add/${bot}`);
+                button.classList.add("glad-icon");
+                button.classList.add("glad-static");
+                buttons.append(button);
+                tippy(button);
+
+                button.addEventListener("click", function () {
+                    if (activelyTrading) {
+                        return Modal("Error creating trade", "You already have a trade processing! Wait for it to finish before starting another.")
+                    }
+
+                    activelyTrading = true;
+                    button.classList.remove("glad-static")
+                    button.classList.add("glad-loading");
+
+                    startTrade(bot, cart).then((tradeOfferUrl) => window.open(tradeOfferUrl)).catch((err) => {
+                        if (err.message === "Not signed in") {
+                            window.open(`${URL}/auth/steam`);
+                            return;
+                        }
+
+                        Modal("Error creating trade", err.message)
+                    }).finally(() => {
+                        activelyTrading = false;
+                        button.classList.add("glad-static")
+                        button.classList.remove("glad-loading");
+                    })
+                }, false);
             }
-        };
+        }
+    };
 
-        const observer = new MutationObserver(callback);
-
-        observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
-    }
+    new MutationObserver(callback)
+        .observe(document.documentElement, { childList: true, subtree: true, attributes: true });
 }
 
-function classicVersion() {
-    'use strict';
+function addLinksClassic(bots) {
+    /* global Modal */
+    /* global $ */
 
-    const URL = "https://gladiator.tf";
-    let data = localStorage.getItem("gladiator.tf bots");
-    if (data) {
-        data = JSON.parse(data);
-        if (new Date() - new Date(data.at) < 1000 * 60 * 60 * 24 && data.url === URL) return addLinks(data.bots);
-    }
-    console.log("fetching bots");
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: `${URL}/api/bots`,
-        onload: function (data) {
-            data = JSON.parse(data.responseText);
-            if (!data.success) return alert(data.message);
+    const spinner = `<i class="fa fa-spin fa-spinner"></i>`;
 
-            let bots = data.bots;
-            addLinks(bots);
-            localStorage.setItem("gladiator.tf bots", JSON.stringify({at: new Date(), bots, url: URL}));
-        }
-    });
+    $('.listing').each(function () {
+        let listing = $(this);
+        let bot = listing.find('.user-link').attr("data-id");
+        if (!bots.includes(bot)) return;
+        let item = listing.find('.listing-item .item');
+        let buttons = listing.find('.listing-buttons');
+        let instantTrade = $(`<a href='steam://friends/add/${bot}' title='Gladiator.tf Instant Trade' class='btn btn-success btn-bottom btn-xs' data-tip=top style=""></a>`);
+        instantTrade.css("height", "22px");
+        instantTrade.css("width", "23px");
+        instantTrade.css("background-image", "url(https://gladiator.tf/img/logo.svg)");
+        instantTrade.css("background-size", "50%");
+        instantTrade.css("background-repeat", "no-repeat");
+        instantTrade.css("background-position", "center");
+        buttons.append(instantTrade);
 
-    function addLinks(bots) {
-        const spinner = `<i class="fa fa-spin fa-spinner"></i>`;
+        instantTrade.click(() => {
+            if (activelyTrading) {
+                return Modal.render("Error creating trade", "You already have a trade processing! Wait for it to finish before starting another.");
+            }
 
-        let currentlyTrading = false;
-        $('.listing').each(function () {
-            let listing = $(this);
-            let bot = listing.find('.user-link').attr("data-id");
-            if (!bots.includes(bot)) return;
-            let item = listing.find('.listing-item .item');
-            let buttons = listing.find('.listing-buttons');
-            let instantTrade = $(`<a href='steam://friends/add/${bot}' title='Gladiator.tf Instant Trade' class='btn btn-success btn-bottom btn-xs' data-tip=top style=""></a>`);
-            instantTrade.css("height", "22px");
-            instantTrade.css("width", "23px");
-            instantTrade.css("background-image", "url(https://gladiator.tf/img/logo.svg)");
-            instantTrade.css("background-size", "50%");
-            instantTrade.css("background-repeat", "no-repeat");
-            instantTrade.css("background-position", "center");
-            buttons.append(instantTrade);
-            instantTrade.click(() => {
-                if (currentlyTrading) return Modal.render("Error creating trade", "You already have a trade processing! Wait for it to finish before starting another.");
-                console.log("requesting");
-                currentlyTrading = true;
-                let cart = {buy: [], sell: []};
-                if (item.data("listing_intent") === "buy") cart.sell.push(item.attr("title"));
-                else cart.buy.push(item.attr("title"));
-                instantTrade.html(spinner);
-                instantTrade.css("background-image", "none");
-                GM_xmlhttpRequest({
-                    method: "POST",
-                    url: `${URL}/api/start_trade`,
-                    data: JSON.stringify({bot, cart}),
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    onload: function (data) {
-                        currentlyTrading = false;
-                        data = JSON.parse(data.responseText);
-                        console.log(data);
-                        instantTrade.empty();
-                        instantTrade.css("background-image", "url(https://gladiator.tf/img/logo.svg)");
-                        if (data.success) window.open(data.tradeOfferURL);
-                        else {
-                            if (data.error === "Not signed in") window.open(`${URL}/auth/steam`);
-                            else Modal.render("Error creating trade", data.message);
-                        }
-                    }
-                })
+            console.log("requesting");
+            activelyTrading = true;
+            let cart = {buy: [], sell: []};
+            if (item.data("listing_intent") === "buy") cart.sell.push(item.attr("title"));
+            else cart.buy.push(item.attr("title"));
+
+            instantTrade.html(spinner);
+            instantTrade.css("background-image", "none");
+
+            startTrade(bot, cart).then((tradeOfferUrl) => window.open(tradeOfferUrl)).catch((err) => {
+                if (err.message === "Not signed in") {
+                    window.open(`${URL}/auth/steam`);
+                    return;
+                }
+
+                Modal.render("Error creating trade", err.message)
+            }).finally(() => {
+                activelyTrading = false;
+
+                instantTrade.empty();
+                instantTrade.css("background-image", "url(https://gladiator.tf/img/logo.svg)");
             })
         })
-    }
+    })
 }
