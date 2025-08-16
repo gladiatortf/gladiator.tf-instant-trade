@@ -113,10 +113,13 @@
 	}
 
 	async function getBots() {
-		const rawData = localStorage.getItem("gladiator.tf bots");
+		localStorage.removeItem("gladiator.tf bots"); // Clear cache for older script users.
+
+		const key = `instant_trade_${URL}_bots`;
+		const rawData = localStorage.getItem(key);
 		if (rawData) {
 			const data = JSON.parse(rawData);
-			if (Date.now() - data.at < DAY && data.url === URL) {
+			if (Date.now() - data.at < DAY) {
 				return data.bots;
 			}
 		}
@@ -129,10 +132,7 @@
 			throw err;
 		});
 
-		localStorage.setItem(
-			"gladiator.tf bots",
-			JSON.stringify({ at: new Date(), bots, url: URL })
-		);
+		localStorage.setItem(key, JSON.stringify({ at: new Date(), bots }));
 		return bots;
 	}
 
