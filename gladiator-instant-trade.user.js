@@ -168,6 +168,12 @@
 		return fetchUserTradeLink()
 			.then(tradeLink => {
 				if (tradeLink === "") {
+					if (isNext) {
+						window.open("https://next.backpack.tf/account/trade-offers");
+					} else {
+						window.open("https://backpack.tf/settings##general");
+					}
+
 					throw new Error("No trade offer link set on backpack.tf");
 				}
 
