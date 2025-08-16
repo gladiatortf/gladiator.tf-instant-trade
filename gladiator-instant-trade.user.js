@@ -136,6 +136,21 @@
 		return bots;
 	}
 
+	function createCart(listingId, itemName, intent) {
+		const cart = { buy: [], sell: [] };
+		if (intent === "sell") {
+			const assetid = listingId.split("_")[1];
+
+			cart.buy.push({
+				assetid
+			});
+		} else {
+			cart.sell.push(itemName);
+		}
+
+		return cart;
+	}
+
 	function startTrade(bot, cart, createTradeOfferUrl) {
 		console.log("Start", bot, cart, createTradeOfferUrl);
 		return Promise.reject(new Error(""));
@@ -169,7 +184,9 @@
 			.then(tradeLink => {
 				if (tradeLink === "") {
 					if (isNext) {
-						window.open("https://next.backpack.tf/account/trade-offers");
+						window.open(
+							"https://next.backpack.tf/account/trade-offers"
+						);
 					} else {
 						window.open("https://backpack.tf/settings##general");
 					}
@@ -369,21 +386,7 @@
 					);
 				}
 
-				const cart = { buy: [], sell: [] };
-				if (intent === "sell") {
-					const assetid = listingId.split("_")[1];
-
-					cart.buy.push({
-						assetid
-					});
-				} else {
-					const nameHash = listingId.split("_")[2];
-
-					cart.sell.push({
-						listingID: nameHash
-					});
-				}
-
+				const cart = createCart(listingId, itemName, intent);
 				checkout(bot, cart).catch(err =>
 					Modal("Error creating trade", err.message)
 				);
@@ -446,20 +449,7 @@
 			}
 
 			const intent = listingId.split("_").length > 2 ? "buy" : "sell";
-			const cart = { buy: [], sell: [] };
-			if (intent === "sell") {
-				const assetid = listingId.split("_")[1];
-
-				cart.buy.push({
-					assetid
-				});
-			} else {
-				const nameHash = listingId.split("_")[2];
-
-				cart.sell.push({
-					listingID: nameHash
-				});
-			}
+			const cart = createCart(listingId, itemName, intent);
 
 			const buttons = listingNode.getElementsByClassName(
 				"listing__details__actions"
@@ -487,7 +477,7 @@
 					button.classList.remove("glad-static");
 					button.classList.add("glad-loading");
 
-					checkout()
+					checkout(bot, cart)
 						.catch(err =>
 							Modal("Error creating trade", err.message)
 						)
@@ -573,12 +563,8 @@
 					);
 				}
 
-				let cart = { buy: [], sell: [] };
-				if ($item.data("listing_intent") === "buy") {
-					cart.sell.push(itemName);
-				} else {
-					cart.buy.push(itemName);
-				}
+				const intent = $item.data("listing_intent");
+				const cart = createCart(listingId, itemName, intent);
 
 				$instantTrade.html(spinner);
 				$instantTrade.css("background-image", "none");
@@ -701,15 +687,10 @@
 						);
 					}
 
-					let cart = { buy: [], sell: [] };
-					if ($item.data("listing_intent") === "buy") {
-						cart.sell.push(itemName);
-					} else {
-						cart.buy.push(itemName);
-					}
-
 					$instantTrade.html(`${spinner}Instant Trade`);
 
+					const intent = $item.data("listing_intent");
+					const cart = createCart(listingId, itemName, intent);
 					checkout(bot, cart)
 						.catch(err =>
 							Modal.render("Error creating trade", err.message)
