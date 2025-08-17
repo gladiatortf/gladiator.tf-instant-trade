@@ -51,7 +51,7 @@
 		},
 		error: err => {
 			console.error(
-				"[instant-trade]: " + err.stack || err.message || err
+				"[instant-trade] ERROR: " + err.stack || err.message || err
 			);
 		}
 	};
@@ -128,6 +128,7 @@
 		if (rawData) {
 			const data = JSON.parse(rawData);
 			if (Date.now() - data.at < DAY) {
+				LOGGER.info("Using cached bot set");
 				return data.bots;
 			}
 		}
@@ -145,6 +146,10 @@
 	}
 
 	function createCart(listingId, itemName, intent) {
+		LOGGER.info(
+			`Trading - intent=${intent} listingId=${listingId} - ${itemName}`
+		);
+
 		const cart = { buy: [], sell: [] };
 		if (intent === "sell") {
 			const assetid = listingId.split("_")[1];
@@ -160,6 +165,8 @@
 	}
 
 	function startTrade(bot, cart, createTradeOfferUrl) {
+		LOGGER.info("Sending trade to gladiator network...");
+
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "POST",
@@ -171,10 +178,12 @@
 				onload: function (data) {
 					const response = JSON.parse(data.responseText);
 					if (!response.success) {
+						LOGGER.error(response.message);
 						reject(new Error(response.message));
 						return;
 					}
 
+					LOGGER.info(`Got ${response.tradeOfferURL}`);
 					resolve(response.tradeOfferURL);
 				},
 				onerror: function (err) {
@@ -188,6 +197,8 @@
 		return fetchUserTradeLink()
 			.then(tradeLink => {
 				if (tradeLink === "") {
+					LOGGER.error("No trade offer url found.");
+
 					if (isNext) {
 						window.open(
 							`https://${nextWebsite}/account/trade-offers`
@@ -204,6 +215,8 @@
 			.then(tradeOfferUrl => window.open(tradeOfferUrl))
 			.catch(err => {
 				if (err.message === "Not signed in") {
+					LOGGER.error("Unauthorized");
+
 					window.open(`${URL}/auth/steam`);
 					return;
 				}
@@ -211,6 +224,12 @@
 				throw err;
 			})
 			.finally(() => endTransaction());
+	}
+
+	function modalRender(title, description) {
+		LOGGER.error(`${title} - ${description}`);
+
+		return modalRender(title, description);
 	}
 
 	function addLinksNext(bots) {
@@ -263,6 +282,8 @@
 			`<image xlink:href="https://gladiator.tf/img/logo.svg" src="https://gladiator.tf/img/logo.svg" width="${width}" height="${height}"></image>`;
 
 		function Modal(title, ...content) {
+			LOGGER.error(title);
+
 			__NUXT__.state.modal = {
 				title: title,
 				modalBundle: null,
@@ -428,9 +449,7 @@
 				}
 
 				if (
-					link.href.startsWith(
-						`https://${nextWebsite}/profiles/`
-					) &&
+					link.href.startsWith(`https://${nextWebsite}/profiles/`) &&
 					link.href.endsWith("/user")
 				) {
 					bot = link.href
@@ -582,7 +601,7 @@
 
 			$itBtn.click(() => {
 				if (!startTransaction(listingId)) {
-					return Modal.render(
+					return modalRender(
 						"Error creating trade",
 						"You already have a trade processing! Wait for it to finish before starting another."
 					);
@@ -602,7 +621,7 @@
 
 				checkout(bot, cart)
 					.catch(err =>
-						Modal.render("Error creating trade", err.message)
+						modalRender("Error creating trade", err.message)
 					)
 					.finally(() => {
 						const $itPopper = $(
@@ -628,6 +647,8 @@
 	}
 
 	function fetchUserTradeLinkClassic() {
+		LOGGER.info("Fetching trade offer url from classic");
+
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "GET",
@@ -651,6 +672,8 @@
 	}
 
 	function fetchUserTradeLinkNext() {
+		LOGGER.info("Fetching trade offer url from next");
+
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "GET",
@@ -723,7 +746,7 @@
 
 				$itPopper.click(() => {
 					if (!startTransaction(listingId)) {
-						return Modal.render(
+						return modalRender(
 							"Error creating trade",
 							"You already have a trade processing! Wait for it to finish before starting another."
 						);
@@ -742,7 +765,7 @@
 					const cart = createCart(listingId, itemName, intent);
 					checkout(bot, cart)
 						.catch(err =>
-							Modal.render("Error creating trade", err.message)
+							modalRender("Error creating trade", err.message)
 						)
 						.finally(() => {
 							if ($itBtn.length > 0) {
