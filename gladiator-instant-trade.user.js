@@ -157,12 +157,6 @@
 	}
 
 	function startTrade(bot, cart, createTradeOfferUrl) {
-		console.log("Start", bot, cart, createTradeOfferUrl);
-
-		return new Promise(resolve => setTimeout(resolve, 5000));
-
-		return Promise.reject(new Error(""));
-
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "POST",
@@ -188,9 +182,6 @@
 	}
 
 	function checkout(bot, cart) {
-		return new Promise(resolve => setTimeout(resolve, 5000)).finally(
-			endTransaction
-		);
 		return fetchUserTradeLink()
 			.then(tradeLink => {
 				if (tradeLink === "") {
