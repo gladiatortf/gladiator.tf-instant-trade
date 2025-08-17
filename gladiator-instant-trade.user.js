@@ -216,9 +216,13 @@
 			})
 			.catch(err => {
 				if (err.message === "Not signed in") {
-					LOGGER.error("No trade offer url found.");
 					window.open(`${URL}/auth/steam`);
-					return;
+					throw new Error("Not signed into gladiator.tf");
+				}
+
+				if (err.error && err.error.includes("Request was redirected")) {
+					window.open(isNext ? `http://${nextWebsite}/login` : `http://backpack.tf/login`);
+					throw new Error("Not signed into backpack.tf");
 				}
 
 				throw err;
