@@ -35,7 +35,7 @@
 	const HOUR = 60 * MINUTE;
 	const DAY = 24 * HOUR;
 
-	const URL = "https://gladiator.tf";
+	const URL = "http://localhost:3000";
 
 	let activelyTrading = false;
 	let activeListingId = null;
@@ -51,7 +51,7 @@
 		},
 		error: err => {
 			console.error(
-				"[instant-trade]: " + err.stack || err.message || err
+				"[instant-trade] ERROR: " + err.stack || err.message || err
 			);
 		}
 	};
@@ -106,7 +106,7 @@
 				onload: function (data) {
 					const response = JSON.parse(data.responseText);
 					if (!response.success) {
-						reject(new Error(response.message));
+						reject(new Error(response.error));
 						return;
 					}
 
@@ -128,6 +128,7 @@
 		if (rawData) {
 			const data = JSON.parse(rawData);
 			if (Date.now() - data.at < DAY) {
+				LOGGER.info("Using cached bot set");
 				return data.bots;
 			}
 		}
@@ -145,6 +146,10 @@
 	}
 
 	function createCart(listingId, itemName, intent) {
+		LOGGER.info(
+			`Trading - intent=${intent} listingId=${listingId} - ${itemName}`
+		);
+
 		const cart = { buy: [], sell: [] };
 		if (intent === "sell") {
 			const assetid = listingId.split("_")[1];
@@ -160,6 +165,8 @@
 	}
 
 	function startTrade(bot, cart, createTradeOfferUrl) {
+		LOGGER.info("Sending trade to gladiator network...");
+
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "POST",
@@ -171,7 +178,8 @@
 				onload: function (data) {
 					const response = JSON.parse(data.responseText);
 					if (!response.success) {
-						reject(new Error(response.message));
+						LOGGER.error(response.error);
+						reject(new Error(response.error));
 						return;
 					}
 
@@ -202,9 +210,13 @@
 				LOGGER.info(`Got ${tradeLink}`);
 				return startTrade(bot, cart, tradeLink);
 			})
-			.then(tradeOfferUrl => window.open(tradeOfferUrl))
+			.then(tradeOfferUrl => {
+				LOGGER.info(`Received trade ${tradeOfferUrl}`);
+				return [window.open(tradeOfferUrl), tradeOfferUrl];
+			})
 			.catch(err => {
 				if (err.message === "Not signed in") {
+					LOGGER.error("No trade offer url found.");
 					window.open(`${URL}/auth/steam`);
 					return;
 				}
@@ -212,6 +224,11 @@
 				throw err;
 			})
 			.finally(() => endTransaction());
+	}
+
+	function modalRender(title, description) {
+		LOGGER.error(`${title} - ${description}`);
+		return Modal.render(title, description);
 	}
 
 	function addLinksNext(bots) {
@@ -403,6 +420,14 @@
 
 				const cart = createCart(listingId, itemName, intent);
 				checkout(bot, cart)
+					.then(([windowOpenRes, tradeOfferUrl]) => {
+						if (!windowOpenRes) {
+							Modal(
+								"Your trade offer is ready",
+								`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
+							);
+						}
+					})
 					.catch(err => Modal("Error creating trade", err.message))
 					.finally(() => {
 						const itBtn = document.getElementById(
@@ -470,7 +495,6 @@
 			}
 
 			const intent = listingId.split("_").length > 2 ? "buy" : "sell";
-			const cart = createCart(listingId, itemName, intent);
 
 			const buttons = listingNode.getElementsByClassName(
 				"listing__details__actions"
@@ -502,7 +526,16 @@
 					itBtn.classList.remove("glad-static");
 					itBtn.classList.add("glad-loading");
 
+					const cart = createCart(listingId, itemName, intent);
 					checkout(bot, cart)
+						.then(([windowOpenRes, tradeOfferUrl]) => {
+							if (!windowOpenRes) {
+								Modal(
+									"Your trade offer is ready",
+									`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
+								);
+							}
+						})
 						.catch(err =>
 							Modal("Error creating trade", err.message)
 						)
@@ -581,7 +614,7 @@
 
 			$itBtn.click(() => {
 				if (!startTransaction(listingId)) {
-					return Modal.render(
+					return modalRender(
 						"Error creating trade",
 						"You already have a trade processing! Wait for it to finish before starting another."
 					);
@@ -600,9 +633,17 @@
 				}
 
 				checkout(bot, cart)
-					.catch(err =>
-						Modal.render("Error creating trade", err.message)
-					)
+					.then(([windowOpenRes, tradeOfferUrl]) => {
+						if (!windowOpenRes) {
+							Modal.render(
+								"Your trade offer is ready",
+								`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
+							);
+						}
+					})
+					.catch(err => {
+						modalRender("Error creating trade", err.message);
+					})
 					.finally(() => {
 						const $itPopper = $(
 							`instant-trade-popper-${listingId}`
@@ -623,10 +664,13 @@
 	}
 
 	async function fetchUserTradeLink() {
-		return fetchUserTradeLinkNext().catch(_ => fetchUserTradeLinkClassic());
+		return fetchUserTradeLinkClassic();
+		// return fetchUserTradeLinkNext().catch(_ => fetchUserTradeLinkClassic());
 	}
 
 	function fetchUserTradeLinkClassic() {
+		LOGGER.info("Fetching trade offer url from classic");
+
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "GET",
@@ -650,11 +694,19 @@
 	}
 
 	function fetchUserTradeLinkNext() {
+		LOGGER.info("Fetching trade offer url from next");
+
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "GET",
 				url: `https://${nextWebsite}/cors/_account/getTradeOffersUrl`,
 				onload: function (response) {
+					if (response.status !== 200) {
+						reject(
+							new Error("Failed to fetch the trade offer url")
+						);
+					}
+
 					const data = JSON.parse(response.responseText);
 					resolve(data.url);
 				},
@@ -738,7 +790,7 @@
 
 				$itPopper.click(() => {
 					if (!startTransaction(listingId)) {
-						return Modal.render(
+						return modalRender(
 							"Error creating trade",
 							"You already have a trade processing! Wait for it to finish before starting another."
 						);
@@ -756,8 +808,16 @@
 					const intent = $item.data("listing_intent");
 					const cart = createCart(listingId, itemName, intent);
 					checkout(bot, cart)
+						.then(([windowOpenRes, tradeOfferUrl]) => {
+							if (!windowOpenRes) {
+								Modal.render(
+									"Your trade offer is ready",
+									`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
+								);
+							}
+						})
 						.catch(err =>
-							Modal.render("Error creating trade", err.message)
+							modalRender("Error creating trade", err.message)
 						)
 						.finally(() => {
 							if ($itBtn.length > 0) {
