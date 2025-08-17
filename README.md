@@ -12,8 +12,8 @@ Classic             |  Next
 ## Requirements
 There are a few requirements for Gladiator.tf to work.
 
-- You must have Steam running on your machine. This is so the bot can automatically be added as a friend, allowing it to send you a trade offer.
 - You must be signed in to Gladiator.tf. The script will direct you to sign in if you are not.
+- You must be signed in to backpack.tf with the same account.
 
 ## Installation
 
