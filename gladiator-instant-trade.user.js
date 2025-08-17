@@ -35,7 +35,7 @@
 	const HOUR = 60 * MINUTE;
 	const DAY = 24 * HOUR;
 
-	const URL = "http://localhost:3000";
+	const URL = "https://gladiator.tf";
 
 	let activelyTrading = false;
 	let activeListingId = null;
