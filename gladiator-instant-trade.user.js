@@ -221,7 +221,11 @@
 				}
 
 				if (err.error && err.error.includes("Request was redirected")) {
-					window.open(isNext ? `http://${nextWebsite}/login` : `http://backpack.tf/login`);
+					window.open(
+						isNext
+							? `http://${nextWebsite}/login`
+							: `http://backpack.tf/login`
+					);
 					throw new Error("Not signed into backpack.tf");
 				}
 
