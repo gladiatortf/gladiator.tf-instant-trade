@@ -40,7 +40,10 @@
 	let activelyTrading = false;
 	let activeListingId = null;
 
-	const isNext = document.location.hostname === "next.backpack.tf";
+	const isNext = typeof __NUXT__ !== "undefined";
+	const nextWebsite = isNext
+		? document.location.hostname
+		: "next.backpack.tf"; // In-case update changes the hostname
 
 	const LOGGER = {
 		info: msg => {
@@ -187,7 +190,7 @@
 				if (tradeLink === "") {
 					if (isNext) {
 						window.open(
-							"https://next.backpack.tf/account/trade-offers"
+							`https://${nextWebsite}/account/trade-offers`
 						);
 					} else {
 						window.open("https://backpack.tf/settings##general");
@@ -332,19 +335,17 @@
 				}
 
 				if (
-					link.href.startsWith(
-						"https://next.backpack.tf/profiles/"
-					) &&
+					link.href.startsWith(`https://${nextWebsite}/profiles/`) &&
 					link.href.endsWith("/user")
 				) {
 					bot = link.href
-						.replace("https://next.backpack.tf/profiles/", "")
+						.replace(`https://${nextWebsite}/profiles/`, "")
 						.replace("/user", "");
 					continue;
 				}
 
 				if (
-					link.href.startsWith("https://next.backpack.tf/classifieds")
+					link.href.startsWith(`https://${nextWebsite}/classifieds`)
 				) {
 					const query = new URLSearchParams(link.href.split("?")[1]);
 					if (query.get("craftable") === "0") {
@@ -365,7 +366,7 @@
 			}
 
 			const listingId = classifiedsEl[0].href.replace(
-				"https://next.backpack.tf/classifieds/",
+				`https://${nextWebsite}/classifieds/`,
 				""
 			);
 			const intent = listingId.split("_").length > 2 ? "buy" : "sell";
@@ -428,21 +429,21 @@
 
 				if (
 					link.href.startsWith(
-						"https://next.backpack.tf/profiles/"
+						`https://${nextWebsite}/profiles/`
 					) &&
 					link.href.endsWith("/user")
 				) {
 					bot = link.href
-						.replace("https://next.backpack.tf/profiles/", "")
+						.replace(`https://${nextWebsite}/profiles/`, "")
 						.replace("/user", "");
 					continue;
 				}
 
 				if (
-					link.href.startsWith("https://next.backpack.tf/classifieds")
+					link.href.startsWith(`https://${nextWebsite}/classifieds`)
 				) {
 					listingId = link.href.replace(
-						"https://next.backpack.tf/classifieds/",
+						`https://${nextWebsite}/classifieds/`,
 						""
 					);
 				}
@@ -653,7 +654,7 @@
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
 				method: "GET",
-				url: `https://next.backpack.tf/cors/_account/getTradeOffersUrl`,
+				url: `https://${nextWebsite}/cors/_account/getTradeOffersUrl`,
 				onload: function (response) {
 					const data = JSON.parse(response.responseText);
 					resolve(data.url);
