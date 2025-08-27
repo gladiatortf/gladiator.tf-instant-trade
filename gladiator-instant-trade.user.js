@@ -51,7 +51,9 @@
 		},
 		error: err => {
 			console.error(
-				"[instant-trade] ERROR: " + err.stack || err.message || err
+				"[instant-trade] ERROR: " + typeof err === "string"
+					? err
+					: err.stack || err.message || err.error
 			);
 		}
 	};
@@ -98,6 +100,10 @@
 		return Session && Session.steamid ? Session.steamid : null;
 	}
 
+	function getSteamIdNext() {
+		return window.__NUXT__.state.auth.user.id;
+	}
+
 	function fetchBots() {
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
@@ -133,16 +139,21 @@
 			}
 		}
 
-		const bots = await fetchBots().catch(err => {
-			if (rawData) {
-				return JSON.parse(rawData).bots;
-			}
+		return fetchBots()
+			.then(bots => {
+				localStorage.setItem(
+					key,
+					JSON.stringify({ at: new Date(), bots })
+				);
+				return bots;
+			})
+			.catch(err => {
+				if (rawData) {
+					return JSON.parse(rawData).bots;
+				}
 
-			throw err;
-		});
-
-		localStorage.setItem(key, JSON.stringify({ at: new Date(), bots }));
-		return bots;
+				throw err;
+			});
 	}
 
 	function createCart(listingId, itemName, intent) {
@@ -178,8 +189,8 @@
 				onload: function (data) {
 					const response = JSON.parse(data.responseText);
 					if (!response.success) {
-						LOGGER.error(response.error);
-						reject(new Error(response.error));
+						LOGGER.error(response);
+						reject(new Error(response.message || response.error));
 						return;
 					}
 
@@ -193,7 +204,7 @@
 	}
 
 	function checkout(bot, cart) {
-		return fetchUserTradeLink()
+		return getUserTradeLink()
 			.then(tradeLink => {
 				if (tradeLink === "") {
 					if (isNext) {
@@ -227,6 +238,14 @@
 							: `http://backpack.tf/login`
 					);
 					throw new Error("Not signed into backpack.tf");
+				}
+
+				if (err.message.includes("Failed to load your inventory.")) {
+					removeTradeLinkFromStorage();
+
+					throw new Error(
+						`Failed to load your inventory. If you've recently changed your trade offer link, it needs to be updated on backpack.tf.`
+					);
 				}
 
 				throw err;
@@ -671,9 +690,52 @@
 		});
 	}
 
-	async function fetchUserTradeLink() {
-		return fetchUserTradeLinkClassic();
-		// return fetchUserTradeLinkNext().catch(_ => fetchUserTradeLinkClassic());
+	async function getUserTradeLink() {
+		if (isNext) {
+			return getUserTradeLinkNext();
+		}
+
+		return getUserTradeLinkClassic();
+	}
+
+	function getTradeOfferUrlStorageKey(steamid) {
+		return `tradeofferurl_${steamid}`;
+	}
+
+	async function getUserTradeLinkClassic() {
+		const steamid = getSteamIdClassic();
+
+		const key = getTradeOfferUrlStorageKey(steamid);
+		const rawData = localStorage.getItem(key);
+		if (rawData) {
+			const data = JSON.parse(rawData);
+			if (Date.now() - data.at < DAY) {
+				LOGGER.info("Using cached trade offer url");
+				return data.url;
+			}
+		}
+
+		return fetchUserTradeLinkClassic()
+			.then(url => {
+				localStorage.setItem(
+					key,
+					JSON.stringify({ at: new Date(), url })
+				);
+				return url;
+			})
+			.catch(err => {
+				if (rawData) {
+					return JSON.parse(rawData).url;
+				}
+
+				throw err;
+			});
+	}
+
+	function removeTradeLinkFromStorage() {
+		const steamid = isNext ? getSteamIdNext() : getSteamIdClassic();
+		const key = getTradeOfferUrlStorageKey(steamid);
+		localStorage.removeItem(key);
 	}
 
 	function fetchUserTradeLinkClassic() {
@@ -701,28 +763,15 @@
 		});
 	}
 
-	function fetchUserTradeLinkNext() {
+	function getUserTradeLinkNext() {
 		LOGGER.info("Fetching trade offer url from next");
 
-		return new Promise((resolve, reject) => {
-			GM_xmlhttpRequest({
-				method: "GET",
-				url: `https://${nextWebsite}/cors/_account/getTradeOffersUrl`,
-				onload: function (response) {
-					if (response.status !== 200) {
-						reject(
-							new Error("Failed to fetch the trade offer url")
-						);
-					}
+		const tradeOfferUrl = window.__NUXT__.state.auth.user.tradeOfferUrl;
 
-					const data = JSON.parse(response.responseText);
-					resolve(data.url);
-				},
-				onerror: function (err) {
-					reject(err);
-				}
-			});
-		});
+		const key = getTradeOfferUrlStorageKey(steamid);
+		localStorage.setItem(key, JSON.stringify({ at: new Date(), url }));
+
+		return Promise.resolve(tradeOfferUrl);
 	}
 
 	function hookPopupsClassic(bots) {
