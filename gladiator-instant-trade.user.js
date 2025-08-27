@@ -101,7 +101,7 @@
 	}
 
 	function getSteamIdNext() {
-		return window.__NUXT__.state.auth.user.id;
+		return window.__NUXT__?.state?.auth?.user?.id;
 	}
 
 	function fetchBots() {
@@ -177,6 +177,9 @@
 
 	function startTrade(bot, cart, createTradeOfferUrl) {
 		LOGGER.info("Sending trade to gladiator network...");
+		LOGGER.info(
+			`Using ${bot} with ${createTradeOfferUrl} - ${JSON.stringify(cart)}`
+		);
 
 		return new Promise((resolve, reject) => {
 			GM_xmlhttpRequest({
@@ -203,7 +206,16 @@
 		});
 	}
 
+	function getSteamId() {
+		return isNext ? getSteamIdNext() : getSteamIdClassic();
+	}
+
 	function checkout(bot, cart) {
+		const steamid = getSteamId();
+		if (!steamid) {
+			throw new Error("Not signed into backpack.tf");
+		}
+
 		return getUserTradeLink()
 			.then(tradeLink => {
 				if (tradeLink === "") {
@@ -733,7 +745,7 @@
 	}
 
 	function removeTradeLinkFromStorage() {
-		const steamid = isNext ? getSteamIdNext() : getSteamIdClassic();
+		const steamid = getSteamId();
 		const key = getTradeOfferUrlStorageKey(steamid);
 		localStorage.removeItem(key);
 	}
