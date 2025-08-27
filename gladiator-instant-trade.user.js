@@ -240,11 +240,11 @@
 					throw new Error("Not signed into backpack.tf");
 				}
 
-				if (err.message.includes("Failed to load your inventory.")) {
+				if (err.message.includes("Your trade offer url is invalid.")) {
 					removeTradeLinkFromStorage();
 
 					throw new Error(
-						`Failed to load your inventory. If you've recently changed your trade offer link, it needs to be updated on backpack.tf.`
+						`Your trade offer url is invalid. Please update your trade offer url on backpack.tf and make sure your inventory is public.`
 					);
 				}
 
