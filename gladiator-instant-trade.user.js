@@ -101,7 +101,7 @@
 	}
 
 	function getSteamIdNext() {
-		return window.__NUXT__?.state?.auth?.user?.id;
+		return __NUXT__?.state?.auth?.user?.id;
 	}
 
 	function fetchBots() {
@@ -778,10 +778,11 @@
 	function getUserTradeLinkNext() {
 		LOGGER.info("Fetching trade offer url from next");
 
-		const tradeOfferUrl = window.__NUXT__.state.auth.user.tradeOfferUrl;
+		const tradeOfferUrl = __NUXT__.state.auth.user.tradeOfferUrl;
+        const steamid = getSteamIdNext();
 
 		const key = getTradeOfferUrlStorageKey(steamid);
-		localStorage.setItem(key, JSON.stringify({ at: new Date(), url }));
+		localStorage.setItem(key, JSON.stringify({ at: new Date(), url: tradeOfferUrl }));
 
 		return Promise.resolve(tradeOfferUrl);
 	}
