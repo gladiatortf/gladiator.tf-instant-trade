@@ -262,7 +262,7 @@
 
 				if (
 					err.message.includes(
-						"Trade link partner does not match your account"
+						"This trade offer link does not belong to the account you are logged in with on gladiator.tf"
 					)
 				) {
 					throw new Error(
