@@ -116,7 +116,7 @@
 						return;
 					}
 
-					LOGGER.info("Fetched latest bot set.");
+					LOGGER.info("Fetched latest bot set from " + URL);
 					resolve(response.bots);
 				},
 				onerror: function (err) {
@@ -451,7 +451,9 @@
 
 			itPopper.innerHTML = ICON(10, 10) + " Instant Trade";
 
-			itPopper.addEventListener("click", function () {
+			itPopper.addEventListener("click", function (e) {
+				e.preventDefault();
+
 				if (!startTransaction(listingId)) {
 					return Modal(
 						"Error creating trade",
@@ -632,86 +634,104 @@
 		});
 	}
 
+	function handleListingClickClassic({
+		bot,
+		listingId,
+		itemName,
+		$item,
+		$itBtn
+	}) {
+		if (!startTransaction(listingId)) {
+			return modalRender(
+				"Error creating trade",
+				"You already have a trade processing! Wait for it to finish before starting another."
+			);
+		}
+
+		const intent = $item.data("listing_intent");
+		const cart = createCart(listingId, itemName, intent);
+
+		$itBtn.html(spinnerClassic);
+		$itBtn.css("background-image", "none");
+
+		const $itPopper = $(`#instant-trade-popper-${listingId}`);
+		if ($itPopper.length > 0) {
+			$itPopper.html(`${spinnerClassic} Instant Trade`);
+			$itPopper.attr("disabled", true);
+		}
+
+		checkout(bot, cart)
+			.then(([windowOpenRes, tradeOfferUrl]) => {
+				if (!windowOpenRes) {
+					Modal.render(
+						"Your trade offer is ready",
+						`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
+					);
+				}
+			})
+			.catch(err => {
+				modalRender("Error creating trade", err.message);
+			})
+			.finally(() => {
+				const $itPopper = $(`instant-trade-popper-${listingId}`);
+				if ($itPopper.length > 0) {
+					$itPopper.html(`${iconClassic} Instant Trade`);
+					$itPopper.attr("disabled", false);
+				}
+
+				$itBtn.empty();
+				$itBtn.css(
+					"background-image",
+					"url(https://gladiator.tf/img/logo.svg)"
+				);
+			});
+	}
+
+	function addLinkToListingClassic(bots, $listing) {
+		const bot = $listing.find(".user-link").attr("data-id");
+		if (!bots.includes(bot)) {
+			return;
+		}
+
+		const $item = $listing.find(".listing-item .item");
+		const $buttons = $listing.find(".listing-buttons");
+
+		const itemName = $item.attr("data-original-title");
+		const listingId = $listing.attr("id").replace("listing-", "");
+
+		const $itBtn = $(
+			`<a id="instant-trade-${listingId}" title="Gladiator.tf Instant Trade" class="btn btn-success btn-bottom btn-xs" data-tip=top style=""></a>`
+		);
+
+		$itBtn.css("height", "22px");
+		$itBtn.css("width", "23px");
+		$itBtn.css(
+			"background-image",
+			"url(https://gladiator.tf/img/logo.svg)"
+		);
+		$itBtn.css("background-size", "50%");
+		$itBtn.css("background-repeat", "no-repeat");
+		$itBtn.css("background-position", "center");
+		$buttons.append($itBtn);
+
+		$itBtn.click(() =>
+			handleListingClickClassic({
+				bot,
+				listingId,
+				itemName,
+				$item,
+				$itBtn
+			})
+		);
+	}
+
 	function addLinksClassic(bots) {
 		/* global Modal */
 		/* global $ */
 
 		$(".listing").each(function () {
 			const $listing = $(this);
-			const bot = $listing.find(".user-link").attr("data-id");
-			if (!bots.includes(bot)) {
-				return;
-			}
-
-			const $item = $listing.find(".listing-item .item");
-			const $buttons = $listing.find(".listing-buttons");
-
-			const itemName = $item.attr("data-original-title");
-			const listingId = $listing.attr("id").replace("listing-", "");
-
-			const $itBtn = $(
-				`<a id="instant-trade-${listingId}" title="Gladiator.tf Instant Trade" class="btn btn-success btn-bottom btn-xs" data-tip=top style=""></a>`
-			);
-
-			$itBtn.css("height", "22px");
-			$itBtn.css("width", "23px");
-			$itBtn.css(
-				"background-image",
-				"url(https://gladiator.tf/img/logo.svg)"
-			);
-			$itBtn.css("background-size", "50%");
-			$itBtn.css("background-repeat", "no-repeat");
-			$itBtn.css("background-position", "center");
-			$buttons.append($itBtn);
-
-			$itBtn.click(() => {
-				if (!startTransaction(listingId)) {
-					return modalRender(
-						"Error creating trade",
-						"You already have a trade processing! Wait for it to finish before starting another."
-					);
-				}
-
-				const intent = $item.data("listing_intent");
-				const cart = createCart(listingId, itemName, intent);
-
-				$itBtn.html(spinnerClassic);
-				$itBtn.css("background-image", "none");
-
-				const $itPopper = $(`#instant-trade-popper-${listingId}`);
-				if ($itPopper.length > 0) {
-					$itPopper.html(`${spinnerClassic} Instant Trade`);
-					$itPopper.attr("disabled", true);
-				}
-
-				checkout(bot, cart)
-					.then(([windowOpenRes, tradeOfferUrl]) => {
-						if (!windowOpenRes) {
-							Modal.render(
-								"Your trade offer is ready",
-								`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
-							);
-						}
-					})
-					.catch(err => {
-						modalRender("Error creating trade", err.message);
-					})
-					.finally(() => {
-						const $itPopper = $(
-							`instant-trade-popper-${listingId}`
-						);
-						if ($itPopper.length > 0) {
-							$itPopper.html(`${iconClassic} Instant Trade`);
-							$itPopper.attr("disabled", false);
-						}
-
-						$itBtn.empty();
-						$itBtn.css(
-							"background-image",
-							"url(https://gladiator.tf/img/logo.svg)"
-						);
-					});
-			});
+			addLinkToListingClassic(bots, $listing);
 		});
 	}
 
@@ -803,127 +823,140 @@
 		return Promise.resolve(tradeOfferUrl);
 	}
 
+	function handlePopperClickClassic({
+		bot,
+		listingId,
+		itemName,
+		$item,
+		$itPopper
+	}) {
+		if (!startTransaction(listingId)) {
+			return modalRender(
+				"Error creating trade",
+				"You already have a trade processing! Wait for it to finish before starting another."
+			);
+		}
+
+		const $itBtn = $(`#instant-trade-${listingId}`);
+		if ($itBtn.length > 0) {
+			$itBtn.html(spinnerClassic);
+			$itBtn.css("background-image", "none");
+		}
+
+		$itPopper.html(`${spinnerClassic} Instant Trade`);
+		$itPopper.attr("disabled", true);
+
+		const intent = $item.data("listing_intent");
+		const cart = createCart(listingId, itemName, intent);
+		checkout(bot, cart)
+			.then(([windowOpenRes, tradeOfferUrl]) => {
+				if (!windowOpenRes) {
+					Modal.render(
+						"Your trade offer is ready",
+						`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
+					);
+				}
+			})
+			.catch(err => modalRender("Error creating trade", err.message))
+			.finally(() => {
+				if ($itBtn.length > 0) {
+					$itBtn.empty();
+					$itBtn.css(
+						"background-image",
+						"url(https://gladiator.tf/img/logo.svg)"
+					);
+				}
+
+				$itPopper.html(`${iconClassic} Instant Trade`);
+				$itPopper.attr("disabled", false);
+			});
+	}
+
+	function appendToPopperClassic(bots, $popover) {
+		if (!$popover.hasClass("popover")) {
+			return false;
+		}
+
+		let $gladLinks = $("#popover-glad-links");
+		if ($gladLinks.length === 0) {
+			const $additionalLinks = $popover.find("#popover-additional-links");
+
+			$gladLinks = $additionalLinks.clone();
+			$gladLinks.empty();
+			$gladLinks.attr("id", "popover-glad-links");
+
+			$(".popover-content").first().append($gladLinks);
+		}
+
+		const $listing = $popover.find(".item-popover-listing");
+		const $item = $popover.parent().parent().find(".listing-item .item");
+
+		const $popParent = $popover.parent().parent();
+		if (
+			typeof $popParent.attr("id") === "undefined" ||
+			!$popParent.attr("id").startsWith("listing-")
+		) {
+			return;
+		}
+
+		const listingId = $popParent.attr("id").replace("listing-", "");
+		const itemName = $item.attr("data-original-title");
+
+		if (
+			$gladLinks.find(".instant-trade-popper").length != 0 ||
+			$listing.length === 0
+		) {
+			return;
+		}
+
+		const bot = $listing
+			.find("dd")
+			.first()
+			.find("a")
+			.first()
+			.attr("href")
+			.replace("/u/", "");
+
+		if (!bots.includes(bot)) {
+			return;
+		}
+
+		const $itPopper = $(
+			`<a id="instant-trade-popper-${listingId}" class="btn btn-default btn-xs instant-trade-popper" target="_blank">${iconClassic}</i> Instant Trade</a>`
+		);
+
+		if (isCurrentlyActive(listingId)) {
+			$itPopper.html(`${spinnerClassic} Instant Trade`);
+			$itPopper.attr("disabled", true);
+		}
+
+		$itPopper.click(() =>
+			handlePopperClickClassic({
+				bot,
+				listingId,
+				itemName,
+				$item,
+				$itPopper
+			})
+		);
+
+		$gladLinks.append($itPopper);
+		return true;
+	}
+
 	function hookPopupsClassic(bots) {
 		$("body").on("mouseover", ".item", function () {
 			const self = this;
 
-			const id = setInterval(function () {
+			const popupInterval = setInterval(function () {
 				const $popover = $(self).next();
-				if (!$popover.hasClass("popover")) {
-					return;
+				if (appendToPopperClassic(bots, $popover)) {
+					clearInterval(popupInterval);
 				}
-
-				clearInterval(id);
-
-				let $gladLinks = $("#popover-glad-links");
-				if ($gladLinks.length === 0) {
-					const $additionalLinks = $popover.find(
-						"#popover-additional-links"
-					);
-
-					$gladLinks = $additionalLinks.clone();
-					$gladLinks.empty();
-					$gladLinks.attr("id", "popover-glad-links");
-
-					$(".popover-content").first().append($gladLinks);
-				}
-
-				const $listing = $popover.find(".item-popover-listing");
-				const $item = $popover
-					.parent()
-					.parent()
-					.find(".listing-item .item");
-
-				const $popParent = $popover.parent().parent();
-				if (
-					typeof $popParent.attr("id") === "undefined" ||
-					!$popParent.attr("id").startsWith("listing-")
-				) {
-					return;
-				}
-
-				const listingId = $popParent.attr("id").replace("listing-", "");
-
-				const itemName = $item.attr("data-original-title");
-
-				if (
-					$gladLinks.find(".instant-trade-popper").length != 0 ||
-					$listing.length === 0
-				) {
-					return;
-				}
-
-				const bot = $listing
-					.find("dd")
-					.first()
-					.find("a")
-					.first()
-					.attr("href")
-					.replace("/u/", "");
-
-				if (!bots.includes(bot)) {
-					return;
-				}
-
-				const $itPopper = $(
-					`<a id="instant-trade-popper-${listingId}" class="btn btn-default btn-xs instant-trade-popper" target="_blank">${iconClassic}</i> Instant Trade</a>`
-				);
-
-				if (isCurrentlyActive(listingId)) {
-					$itPopper.html(`${spinnerClassic} Instant Trade`);
-					$itPopper.attr("disabled", true);
-				}
-
-				$itPopper.click(() => {
-					if (!startTransaction(listingId)) {
-						return modalRender(
-							"Error creating trade",
-							"You already have a trade processing! Wait for it to finish before starting another."
-						);
-					}
-
-					const $itBtn = $(`#instant-trade-${listingId}`);
-					if ($itBtn.length > 0) {
-						$itBtn.html(spinnerClassic);
-						$itBtn.css("background-image", "none");
-					}
-
-					$itPopper.html(`${spinnerClassic} Instant Trade`);
-					$itPopper.attr("disabled", true);
-
-					const intent = $item.data("listing_intent");
-					const cart = createCart(listingId, itemName, intent);
-					checkout(bot, cart)
-						.then(([windowOpenRes, tradeOfferUrl]) => {
-							if (!windowOpenRes) {
-								Modal.render(
-									"Your trade offer is ready",
-									`<a href="${tradeOfferUrl}" target="_blank">Link</a>`
-								);
-							}
-						})
-						.catch(err =>
-							modalRender("Error creating trade", err.message)
-						)
-						.finally(() => {
-							if ($itBtn.length > 0) {
-								$itBtn.empty();
-								$itBtn.css(
-									"background-image",
-									"url(https://gladiator.tf/img/logo.svg)"
-								);
-							}
-
-							$itPopper.html(`${iconClassic} Instant Trade`);
-							$itPopper.attr("disabled", false);
-						});
-				});
-
-				$gladLinks.append($itPopper);
 			}, 50);
 
 			setTimeout(function () {
-				clearInterval(id);
+				clearInterval(popupInterval);
 			}, 750);
 		});
 	}
