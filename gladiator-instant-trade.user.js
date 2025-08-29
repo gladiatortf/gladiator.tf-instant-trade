@@ -494,7 +494,7 @@
 
 		function handleListing(bots, node) {
 			let listingNode = node;
-			while (!listingNode.classList.has("listing")) {
+			while (!listingNode.classList.contains("listing")) {
 				listingNode = listingNode.parentNode;
 			}
 
