@@ -260,6 +260,16 @@
 					);
 				}
 
+				if (
+					err.message.includes(
+						"Trade link partner does not match your account"
+					)
+				) {
+					throw new Error(
+						"You need to be logged into the same account on both backpack.tf and gladiator.tf."
+					);
+				}
+
 				throw err;
 			})
 			.finally(() => endTransaction());
