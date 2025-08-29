@@ -346,7 +346,7 @@
 
 				for (const child of content) {
 					const p = document.createElement("p");
-					p.innerText = child;
+					p.innerHTML = child;
 					dialog.append(p);
 				}
 			}, 100);
