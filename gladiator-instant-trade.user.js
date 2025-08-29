@@ -789,10 +789,13 @@
 		LOGGER.info("Fetching trade offer url from next");
 
 		const tradeOfferUrl = __NUXT__.state.auth.user.tradeOfferUrl;
-        const steamid = getSteamIdNext();
+		const steamid = getSteamIdNext();
 
 		const key = getTradeOfferUrlStorageKey(steamid);
-		localStorage.setItem(key, JSON.stringify({ at: new Date(), url: tradeOfferUrl }));
+		localStorage.setItem(
+			key,
+			JSON.stringify({ at: new Date(), url: tradeOfferUrl })
+		);
 
 		return Promise.resolve(tradeOfferUrl);
 	}
