@@ -493,7 +493,10 @@
 		}
 
 		function handleListing(bots, node) {
-			let listingNode = node.parentNode.parentNode.parentNode.parentNode;
+			let listingNode = node;
+			while (!listingNode.classList.has("listing")) {
+				listingNode = listingNode.parentNode;
+			}
 
 			let bot = null;
 			let listingId = null;
