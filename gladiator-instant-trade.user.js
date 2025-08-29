@@ -262,7 +262,7 @@
 
 				if (
 					err.message.includes(
-						"This trade offer link does not belong to the account you are logged in with on gladiator.tf"
+						"This trade offer link does not belong to the account you are logged into gladiator.tf with"
 					)
 				) {
 					throw new Error(
