@@ -28,6 +28,12 @@
 (async function () {
 	"use strict";
 
+	/* global Session */
+	/* global tippy */
+	/* global __NUXT__ */
+	/* global Modal */
+	/* global $ */
+
 	const spinnerClassic = `<i class="fa fa-spin fa-spinner"></i>`;
 	const iconClassic = `<i class="fa fa-flash fa-sw"></i>`;
 
@@ -37,14 +43,14 @@
 	const DAY = 24 * HOUR;
 
 	const URL = "https://gladiator.tf";
-
-	let activelyTrading = false;
-	let activeListingId = null;
-
+	
 	const isNext = typeof __NUXT__ !== "undefined";
 	const nextWebsite = isNext
 		? document.location.hostname
 		: "next.backpack.tf"; // In-case update changes the hostname
+
+	let activelyTrading = false;
+	let activeListingId = null;
 
 	const LOGGER = {
 		info: msg => {
@@ -58,6 +64,21 @@
 			);
 		}
 	};
+
+	runScript();
+
+	async function runScript() {
+		const bots = await getBots();
+		if (isNext) {
+			LOGGER.info("On next site");
+			addLinksNext(bots);
+			return;
+		}
+
+		LOGGER.info("On classic site");
+		addLinksClassic(bots);
+		hookPopupsClassic(bots);
+	}
 
 	function startTransaction(listingId) {
 		if (activelyTrading) {
@@ -83,19 +104,6 @@
 		activeListingId = null;
 	}
 
-	async function execute() {
-		const bots = await getBots();
-		if (isNext) {
-			LOGGER.info("On next site");
-			addLinksNext(bots);
-			return;
-		}
-
-		LOGGER.info("On classic site");
-		addLinksClassic(bots);
-		hookPopupsClassic(bots);
-	}
-
 	function openTab(url) {
 		GM_openInTab(url, {
 			active: true,
@@ -103,11 +111,9 @@
 		});
 
 		return true;
-		// return window.open(url);
 	}
 
 	function getSteamIdClassic() {
-		/* global Session */
 		return Session && Session.steamid ? Session.steamid : null;
 	}
 
@@ -290,9 +296,6 @@
 	}
 
 	function addLinksNext(bots) {
-		/* global tippy */
-		/* global __NUXT__ */
-
 		GM_addStyle(`
 			.glad-icon {
 				cursor: pointer;
@@ -735,9 +738,6 @@
 	}
 
 	function addLinksClassic(bots) {
-		/* global Modal */
-		/* global $ */
-
 		$(".listing").each(function () {
 			const $listing = $(this);
 			addLinkToListingClassic(bots, $listing);
@@ -969,6 +969,4 @@
 			}, 750);
 		});
 	}
-
-	execute();
 })();
