@@ -5,6 +5,7 @@
 // @author          Gladiator.TF Team &  manic
 // @description     Start a trade with a Gladiator.tf bot in a single click
 // @grant           GM_xmlhttpRequest
+// @grant           GM_openInTab
 // @grant           GM_addStyle
 // @connect         gladiator.tf
 // @connect         backpack.tf
@@ -93,6 +94,16 @@
 		LOGGER.info("On classic site");
 		addLinksClassic(bots);
 		hookPopupsClassic(bots);
+	}
+
+	function openTab(url) {
+		GM_openInTab(url, {
+			active: true,
+			incognito: false,
+		});
+
+		return true;
+		// return window.open(url);
 	}
 
 	function getSteamIdClassic() {
@@ -220,11 +231,9 @@
 			.then(tradeLink => {
 				if (tradeLink === "") {
 					if (isNext) {
-						window.open(
-							`https://${nextWebsite}/account/trade-offers`
-						);
+						openTab(`https://${nextWebsite}/account/trade-offers`);
 					} else {
-						window.open("https://backpack.tf/settings##general");
+						openTab("https://backpack.tf/settings##general");
 					}
 
 					throw new Error("No trade offer link set on backpack.tf");
@@ -235,16 +244,16 @@
 			})
 			.then(tradeOfferUrl => {
 				LOGGER.info(`Received trade ${tradeOfferUrl}`);
-				return [window.open(tradeOfferUrl), tradeOfferUrl];
+				return [openTab(tradeOfferUrl), tradeOfferUrl];
 			})
 			.catch(err => {
 				if (err.message === "Not signed in") {
-					window.open(`${URL}/auth/steam`);
+					openTab(`${URL}/auth/steam`);
 					throw new Error("Not signed into gladiator.tf");
 				}
 
 				if (err.error && err.error.includes("Request was redirected")) {
-					window.open(
+					openTab(
 						isNext
 							? `http://${nextWebsite}/login`
 							: `http://backpack.tf/login`
