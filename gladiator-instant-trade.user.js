@@ -2,7 +2,7 @@
 // @name            Gladiator.tf Instant Trade
 // @namespace       https://gladiator.tf/
 // @version         1.0
-// @author          Gladiator.TF Team &  manic
+// @author          Gladiator.TF Team & manic
 // @description     Start a trade with a Gladiator.tf bot in a single click
 // @grant           GM_xmlhttpRequest
 // @grant           GM_openInTab
