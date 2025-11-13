@@ -107,7 +107,7 @@
 	function openTab(url) {
 		GM_openInTab(url, {
 			active: true,
-			incognito: false,
+			incognito: false
 		});
 
 		return true;
@@ -708,7 +708,7 @@
 		const $item = $listing.find(".listing-item .item");
 		const $buttons = $listing.find(".listing-buttons");
 
-		const itemName = $item.attr("data-original-title");
+		const itemName = $item.attr("title");
 		const listingId = $listing.attr("id").replace("listing-", "");
 
 		const $itBtn = $(
